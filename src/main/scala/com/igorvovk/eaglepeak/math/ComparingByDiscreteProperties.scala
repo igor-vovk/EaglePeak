@@ -28,7 +28,7 @@ class ComparingByDiscreteProperties[K, V] extends ComparingAlgo[K, Iterable[V]] 
 
     indexed.unpersist()
 
-    ComparingAlgoResult(descriptors, matrix.toRowMatrix)
+    ComparingAlgoResult(descriptors, matrix.toRowMatrix())
   }
 
 }
