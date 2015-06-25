@@ -1,34 +1,33 @@
 package com.igorvovk.eaglepeak.math
 
 import com.igorvovk.eaglepeak.domain.Descriptor
+import com.igorvovk.eaglepeak.domain.Descriptor._
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, MatrixEntry}
 import org.apache.spark.rdd.RDD
 
-class ComparingByDiscreteProperties[K, V] extends ComparingAlgo[K, Iterable[V]] {
+class ComparingByDiscreteProperties[K] extends ComparingAlgo[K, Set[DescriptorId]] {
 
   val resultIfSame = 1d
 
-  def compare(objects: RDD[(K, Iterable[V])]): ComparingAlgoResult[K] = {
+  def compare(objects: RDD[(K, Set[DescriptorId])]): ComparingAlgoResult[K] = {
     val indexed = objects.zipWithIndex()
-    indexed.persist()
+    indexed.cache()
 
-    val descriptors = indexed.map { case ((key, _), i) => new Descriptor[K](i.toInt, key) }
+    val descriptors = indexed.map { case ((key, _), i) => new Descriptor[K](i, key) }
 
-    val matrix = new CoordinateMatrix(indexed.cartesian(indexed).map { case (((aKey, aProps), ai), ((bKey, bProps), bi)) =>
+    val matrix = new CoordinateMatrix(indexed.cartesian(indexed).map { case (((aKey, aProps), i), ((bKey, bProps), j)) =>
       val compareResult =
         if (aKey == bKey) resultIfSame
         else {
-          val bSet = bProps.toSet
-
-          1d / aProps.filterNot(bSet).size
+          aProps.count(bProps) / (aProps ++ bProps).size
         }
 
-      MatrixEntry(ai, bi, compareResult)
-    })
+      MatrixEntry(i, j, compareResult)
+    }).toIndexedRowMatrix()
 
-    indexed.unpersist()
+    indexed.unpersist(false)
 
-    ComparingAlgoResult(descriptors, matrix.toRowMatrix())
+    ComparingAlgoResult(descriptors, matrix)
   }
 
 }

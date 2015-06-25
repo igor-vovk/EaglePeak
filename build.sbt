@@ -24,4 +24,4 @@ libraryDependencies ++= {
 }
 
 scalacOptions in Test ++= Seq("-Yrangepos")
-testOptions in Test += Tests.Argument("sequential")
+//testOptions in Test += Tests.Argument("sequential")

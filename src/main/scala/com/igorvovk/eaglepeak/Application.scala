@@ -4,7 +4,6 @@ import com.google.inject.Guice
 import com.igorvovk.eaglepeak.guice.{ConfigModule, SparkModule}
 import net.codingwell.scalaguice.InjectorExtensions._
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.SQLContext
 
 object Application extends App {
 
@@ -12,7 +11,7 @@ object Application extends App {
 
   val injector = Guice.createInjector(
     new ConfigModule,
-    new SparkModule
+    new SparkModule()
   )
 
   val sc = injector.instance[SparkContext]
