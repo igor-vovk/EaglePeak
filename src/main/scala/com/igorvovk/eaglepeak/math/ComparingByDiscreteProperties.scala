@@ -19,9 +19,7 @@ class ComparingByDiscreteProperties[K] extends ComparingAlgo[K, Set[DescriptorId
     val entries = indexed.cartesian(indexed).flatMap { case (((_, aProps), i), ((_, bProps), j)) =>
       val similar = Similarity.jaccard(aProps, bProps)
       if (similar > 0) {
-        val compareResult = similar.toDouble / (aProps ++ bProps).size
-
-        Iterator.single(MatrixEntry(i, j, compareResult))
+        Iterator.single(MatrixEntry(i, j, similar))
       } else {
         Iterator.empty
       }
