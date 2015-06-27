@@ -20,9 +20,6 @@ libraryDependencies ++= {
     "com.databricks" %% "spark-csv" % "1.0.3",
     "net.ceedubs" %% "ficus" % "1.1.2",
     "net.codingwell" %% "scala-guice" % "4.0.0",
-    "org.apache.lucene" % "lucene-core" % luceneVer,
-    "org.apache.lucene" % "lucene-analyzers-common" % luceneVer,
-    "org.apache.lucene" % "lucene-queryparser" % luceneVer,
     "org.specs2" %% "specs2-core" % "3.6.1" % "test"
   )
 }
