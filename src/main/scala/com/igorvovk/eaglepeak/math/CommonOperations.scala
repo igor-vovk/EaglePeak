@@ -2,8 +2,8 @@ package com.igorvovk.eaglepeak.math
 
 import com.igorvovk.eaglepeak.domain.Descriptor
 import com.igorvovk.eaglepeak.domain.Descriptor._
+import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix, RowMatrix}
 import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
-import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 
@@ -68,6 +68,35 @@ object CommonOperations {
       },
       (a, b) => a ++ b
     )
+  }
+
+  def addMatrices(matrices: RowMatrix*): RowMatrix = {
+    import org.apache.spark.mllib.linalg.SparkBreezeConverters._
+
+    require(matrices.nonEmpty, "Pass at least one matrix")
+
+    if (matrices.length == 1) {
+      matrices.head
+    } else {
+      val numRows = matrices.head.numRows()
+      val numCols = matrices.head.numCols()
+      require(matrices.forall(m => m.numRows() == numRows && m.numCols() == numCols), "Matrix must have same dimensions")
+
+      val newRows = matrices.map(_.rows.map(_.toBreeze)).reduce { case (aRows, bRows) =>
+        aRows.zip(bRows).map(vectorsPair => vectorsPair._1 + vectorsPair._2)
+      }.map(_.toSpark)
+
+      new RowMatrix(newRows, numRows, numCols)
+    }
+  }
+
+  /**
+   * Union two maps a and b, executing mergeFunc on conflicting values
+   */
+  def unionWithKey[K, V](a: Map[K, V], b: Map[K, V], mergeFunc: (K, V, V) => V): Map[K, V] = {
+    (a -- b.keySet) ++ b.map { case (k, v) =>
+      k -> a.get(k).map(mergeFunc(k, v, _)).getOrElse(v)
+    }
   }
 
 }
