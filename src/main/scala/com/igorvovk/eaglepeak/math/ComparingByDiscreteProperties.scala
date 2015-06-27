@@ -13,17 +13,21 @@ class ComparingByDiscreteProperties[K] extends ComparingAlgo[K, Set[DescriptorId
     val indexed = objects.zipWithIndex()
     indexed.cache()
 
+    val size = indexed.count()
     val descriptors = indexed.map { case ((key, _), i) => new Descriptor[K](i, key) }
 
-    val matrix = new CoordinateMatrix(indexed.cartesian(indexed).map { case (((aKey, aProps), i), ((bKey, bProps), j)) =>
-      val compareResult =
-        if (aKey == bKey) resultIfSame
-        else {
-          aProps.count(bProps) / (aProps ++ bProps).size
-        }
+    val entries = indexed.cartesian(indexed).flatMap { case (((_, aProps), i), ((_, bProps), j)) =>
+      val similar = Similarity.jaccard(aProps, bProps)
+      if (similar > 0) {
+        val compareResult = similar.toDouble / (aProps ++ bProps).size
 
-      MatrixEntry(i, j, compareResult)
-    }).toIndexedRowMatrix()
+        Iterator.single(MatrixEntry(i, j, compareResult))
+      } else {
+        Iterator.empty
+      }
+    }
+
+    val matrix = new CoordinateMatrix(entries, size, size).toIndexedRowMatrix()
 
     indexed.unpersist(false)
 

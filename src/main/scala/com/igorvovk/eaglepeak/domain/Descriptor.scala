@@ -10,20 +10,19 @@ object Descriptor {
 
 /**
  * Descriptor having unique id and description
- * @TODO maybe id should be [[Long]]
  */
 class Descriptor[+T](val id: DescriptorId, val description: T) extends Serializable {
+
+  def tuple: (Int, T) = (id, description)
+
+  def tupleInv: (T, Int) = (description, id)
 
   override def equals(obj: Any) = obj match {
     case that: Descriptor[T] => this.id == that.id
     case _ => false
   }
 
-  def tuple: (Int, T) = (id, description)
+  override def hashCode() = id.hashCode()
 
-  def tupleInv: (T, Int) = (description, id)
-
-  override def hashCode() = id
-
-  override def toString: String = s"($id, $description)"
+  override def toString: String = s"$id -> $description"
 }

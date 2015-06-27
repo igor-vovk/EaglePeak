@@ -1,11 +1,11 @@
-package com.igorvovk.eaglepeak.dataframes
+package com.igorvovk.eaglepeak.math
 
 import com.igorvovk.eaglepeak.SparkBeforeAfter
 import org.specs2.mutable.Specification
 
-class DataFrameOperationsSpec extends Specification with SparkBeforeAfter {
+class CommonOperationsSpec extends Specification with SparkBeforeAfter {
 
-  import DataFrameOperations._
+  import CommonOperations._
 
   val tuples = Seq[(String, Int)](("a", 1), ("b", 2), ("c", 3), ("a", 4))
 
