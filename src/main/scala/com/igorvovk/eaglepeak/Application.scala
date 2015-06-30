@@ -5,9 +5,10 @@ import java.io.File
 import breeze.linalg.Matrix
 import com.google.inject.Guice
 import com.igorvovk.eaglepeak.domain.Descriptor
-import com.igorvovk.eaglepeak.domain.Identifiable._
+import com.igorvovk.eaglepeak.domain.Descriptor.DescriptorId
 import com.igorvovk.eaglepeak.guice.{ConfigModule, SparkModule}
-import com.igorvovk.eaglepeak.math.{CommonOperations, ComparingByContinuousProperties, ComparingByDiscreteProperties}
+import com.igorvovk.eaglepeak.math.CommonOperations
+import com.igorvovk.eaglepeak.math.comparators.{ContinuousPropertiesComparator, DiscretePropertiesComparator}
 import com.igorvovk.eaglepeak.service.IO
 import net.codingwell.scalaguice.InjectorExtensions._
 import org.apache.spark.SparkContext
@@ -37,15 +38,15 @@ object Application extends App {
   def buildSimilarities(path: String) = {
     import com.igorvovk.eaglepeak.math.CommonOperations._
 
-    val discretePropsComparator = new ComparingByDiscreteProperties[String]
-    val continuousPropsComparator = new ComparingByContinuousProperties[String]()
+    val discretePropsComparator = new DiscretePropertiesComparator[DescriptorId]
+    val continuousPropsComparator = new ContinuousPropertiesComparator
 
     val athleteDescriptors = buildDescriptors[String](fixture, "Athlete")
 
     val matrices = Map(
-      "Country" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Country")._1).matrix,
-      "Sport" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Sport")._1).matrix,
-      "Year" -> continuousPropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Year")._1.mapValues(s => java.lang.Double.valueOf(s.head))).matrix
+      "Country" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Country")._1.values).matrix,
+      "Sport" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Sport")._1.values).matrix,
+      "Year" -> continuousPropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Year")._1.values.map(s => java.lang.Double.valueOf(s.head))).matrix
     )
 
     val transposed = rotateAndTranspose(matrices.values.toSeq)
