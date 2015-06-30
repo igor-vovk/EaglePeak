@@ -21,7 +21,7 @@ class SubsetOperationsSpec extends Specification {
   }
 
   "Find largest subsets" >> {
-    largestSubsets(store, Set("a", "b", "c", "d")).reverse should_== Set("a", "b", "c") :: Set("d") :: Nil
+    largestSubsets(store, Set("a", "b", "c", "d")) should_== Set("a", "b", "c") :: Set("d") :: Nil
   }
 
 }

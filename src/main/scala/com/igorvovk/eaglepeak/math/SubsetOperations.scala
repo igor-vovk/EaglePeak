@@ -22,12 +22,8 @@ object SubsetOperations {
     }
   }
 
-  def largestSubset[T](storage: List[Set[T]], set: Set[T]): Option[Set[T]] = {
-    Option(largestSubset(storage, set, set.size)._1)
-  }
-
   @tailrec
-  def largestSubsets[T](storage: List[Set[T]], set: Set[T], mem: List[Set[T]] = List.empty): List[Set[T]] = {
+  private def largestSubsets[T](storage: List[Set[T]], set: Set[T], mem: List[Set[T]]): List[Set[T]] = {
     storage match {
       case Nil => mem
       case _ =>
@@ -36,6 +32,14 @@ object SubsetOperations {
           case (sub, leftStorage) => largestSubsets(leftStorage, set -- sub, sub :: mem)
         }
     }
+  }
+
+  def largestSubset[T](storage: List[Set[T]], set: Set[T]): Option[Set[T]] = {
+    Option(largestSubset(storage, set, set.size)._1)
+  }
+
+  def largestSubsets[T](storage: List[Set[T]], set: Set[T]): List[Set[T]] = {
+    largestSubsets(storage, set, List.empty).reverse
   }
 
 }
