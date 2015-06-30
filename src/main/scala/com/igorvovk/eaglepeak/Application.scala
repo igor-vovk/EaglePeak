@@ -7,8 +7,8 @@ import com.google.inject.Guice
 import com.igorvovk.eaglepeak.domain.Descriptor
 import com.igorvovk.eaglepeak.domain.Descriptor.DescriptorId
 import com.igorvovk.eaglepeak.guice.{ConfigModule, SparkModule}
-import com.igorvovk.eaglepeak.math.CommonOperations
 import com.igorvovk.eaglepeak.math.comparators.{ContinuousPropertiesComparator, DiscretePropertiesComparator}
+import com.igorvovk.eaglepeak.math.recommendations.RawFirst
 import com.igorvovk.eaglepeak.service.IO
 import net.codingwell.scalaguice.InjectorExtensions._
 import org.apache.spark.SparkContext
@@ -62,29 +62,6 @@ object Application extends App {
 
     println("Descriptors loaded")
 
-//    val matrices = descriptors.par.flatMap(d => {
-//      val rddPath = s"$path/matrix/${d.id}"
-//      if (Files.exists(Paths.get(rddPath))) {
-//        try {
-//          val rows = IO.loadRDD[IndexedRow](sc, rddPath)
-//
-//          val m = new IndexedRowMatrix(rows)
-//          // Cache
-////          m.numRows()
-////          m.numCols()
-//
-//          Iterator.single(d.id -> m)
-//        } catch {
-//          case e: Throwable =>
-//            println(s"Failed to load RDD $rddPath")
-//
-//            Iterator.empty
-//        }
-//      } else {
-//        Iterator.empty
-//      }
-//    }).seq.toMap
-
     val matrix = IO.loadRDD[(Int, Matrix[Double])](sc, s"$path/matrix")
 
     println("Matrices loaded")
@@ -112,7 +89,9 @@ object Application extends App {
 
   println("From: " + from.map(descriptorsById))
 
-  CommonOperations.similar(similarities)(from).slice(0, 50).foreach(row => {
+  val recommendationsAlgo = new RawFirst(similarities)
+
+  recommendationsAlgo.similar(from).slice(0, 50).foreach(row => {
     println(descriptorsById(row.id) + ": " + row.value)
   })
 
