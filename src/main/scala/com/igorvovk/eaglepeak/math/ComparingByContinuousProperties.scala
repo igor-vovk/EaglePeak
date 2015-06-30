@@ -28,7 +28,7 @@ class ComparingByContinuousProperties[K: ClassTag] extends ComparingAlgo[K, Doub
       MatrixEntry(i, j, weight)
     }
 
-    val matrix = new CoordinateMatrix(entries, size, size).toRowMatrix()
+    val matrix = new CoordinateMatrix(entries, size, size)
 
     objects.unpersist(false)
     indexed.unpersist(false)

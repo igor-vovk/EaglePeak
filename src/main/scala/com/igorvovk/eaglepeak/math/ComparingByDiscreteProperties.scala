@@ -25,7 +25,7 @@ class ComparingByDiscreteProperties[K] extends ComparingAlgo[K, Set[DescriptorId
       }
     }
 
-    val matrix = new CoordinateMatrix(entries, size, size).toRowMatrix()
+    val matrix = new CoordinateMatrix(entries, size, size)
 
     indexed.unpersist(false)
 

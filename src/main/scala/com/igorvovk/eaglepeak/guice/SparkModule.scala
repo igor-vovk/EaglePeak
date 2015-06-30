@@ -8,20 +8,29 @@ import org.apache.spark.sql.SQLContext
 
 object SparkModule {
 
-  val name = "EaglePeek"
+  def commonConfig() = {
+    val commonSettings = Map(
+      "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
+    )
+
+    new SparkConf()
+      .setAppName("EaglePeek")
+      .setAll(commonSettings)
+  }
 
   class TestSparkContextProvider extends Provider[SparkContext] {
 
-    override def get() = new SparkContext("local", name)
+    override def get() = {
+      new SparkContext(commonConfig().setMaster("local"))
+    }
 
   }
 
   class SparkContextProvider @Inject()(config: Config) extends Provider[SparkContext] {
 
     override def get() = {
-      val config = new SparkConf()
+      val config = commonConfig()
         .setMaster("local[2]") // TODO: from configuration
-        .setAppName(name)
 
       new SparkContext(config)
     }
@@ -42,10 +51,10 @@ class SparkModule(test: Boolean = false) extends AbstractModule with ScalaModule
   override def configure(): Unit = {
     if (test) {
       bind[SparkContext].toProvider[TestSparkContextProvider]
+      bind[SQLContext].toProvider[SQLContextProvider]
     } else {
       bind[SparkContext].toProvider[SparkContextProvider].in[Singleton]
+      bind[SQLContext].toProvider[SQLContextProvider].in[Singleton]
     }
-
-    bind[SQLContext].toProvider[SQLContextProvider].in[Singleton]
   }
 }

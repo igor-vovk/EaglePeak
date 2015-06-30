@@ -33,7 +33,7 @@ class ComparingByContinuousPropertiesZoned[K: ClassTag](zonesCount: Int = 5) ext
       }
     }
 
-    val matrix = new CoordinateMatrix(entries, size, size).toRowMatrix()
+    val matrix = new CoordinateMatrix(entries, size, size)
 
     objects.unpersist(false)
     indexed.unpersist(false)

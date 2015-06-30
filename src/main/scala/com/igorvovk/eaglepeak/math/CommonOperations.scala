@@ -1,10 +1,10 @@
 package com.igorvovk.eaglepeak.math
 
-import com.igorvovk.eaglepeak.domain.Descriptor
+import breeze.linalg.{CSCMatrix, DenseVector, Matrix}
 import com.igorvovk.eaglepeak.domain.Descriptor._
-import org.apache.spark.mllib.linalg.Matrices
-import org.apache.spark.mllib.linalg.SparkBreezeConverters._
-import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix, RowMatrix}
+import com.igorvovk.eaglepeak.domain.Identifiable._
+import com.igorvovk.eaglepeak.domain.{Descriptor, Identifiable, IdentifiableDouble}
+import org.apache.spark.mllib.linalg.distributed._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 
@@ -33,31 +33,47 @@ object CommonOperations {
     df.map(row => row.getAs[K](keyCol) -> row.getAs[V](valueCol))
   }
 
-  def rotateAndTranspose[AD](similarities: Seq[RowMatrix]): (Map[Long, IndexedRowMatrix]) = {
-    if (similarities.nonEmpty) {
-      val simSize = similarities.size
-      val objCount = similarities.head.numRows()
+  def rotateAndTranspose(algoMatrices: Seq[CoordinateMatrix]): RDD[(Int, Matrix[Double])] = {
+    require(algoMatrices.nonEmpty)
+
+    val simSize = algoMatrices.size
+    val objCount = algoMatrices.head.numRows()
+
+    algoMatrices.zipWithIndex.foreach { case (m, i) =>
+      val cols = m.numCols()
+      val rows = m.numRows()
+
       require(
-        similarities.forall(m => m.numCols() == objCount && m.numRows() == objCount),
-        "All matrices should be square and have same dimensions"
+        cols == objCount && rows == objCount,
+        s"All matrices should be square and have same dimensions " +
+          s"(matrix #$i (RDD ${m.entries.name}} have dimensions R$rows x C$cols, must be $objCount)"
       )
-
-      val indexedRddRows = similarities.map(_.rows.zipWithIndex().map { case (v, index) => new IndexedRow(index, v) })
-
-      val rotated = (0L to objCount).map(objectIndex => {
-        val similaritiesByAlgo = indexedRddRows.zipWithIndex.map { case (indexedRDD, algoId) =>
-          indexedRDD.filter(_.index == objectIndex).map(row => row.copy(index = algoId))
-        }.reduce(_ ++ _).sortBy(_.index)
-
-        objectIndex -> new IndexedRowMatrix(similaritiesByAlgo, objCount, simSize)
-      }).toMap
-
-      rotated.mapValues(matrix => {
-        matrix.toCoordinateMatrix().transpose().toIndexedRowMatrix()
-      })
-    } else {
-      Map.empty
     }
+
+    val entriesByObjectIds = algoMatrices.zipWithIndex.map { case (algoMatrix, algoIndex) =>
+      algoMatrix.entries.map { case MatrixEntry(row, col, v) =>
+        row.toInt -> MatrixEntry(col, algoIndex, v)
+      }
+    }.reduce(_ ++ _).groupByKey()
+
+    val matricesByObjectIds = entriesByObjectIds.mapValues(mkMatrixFromEntries(_, objCount, simSize))
+
+    matricesByObjectIds
+  }
+
+  def mkMatrixFromEntries(entries: Iterable[MatrixEntry], rows: Int, cols: Int): Matrix[Double] = {
+    val builder = new CSCMatrix.Builder[Double](rows, cols)
+    entries.foreach(entry => builder.add(entry.i.toInt, entry.j.toInt, entry.value))
+
+    val m = builder.result
+
+    if (m.activeSize.toDouble / (rows * cols) > 0.75d) m.toDense else m
+  }
+
+  def filterSelfIndices(indice: Int, similarities: Matrix[Double]) = {
+    (0 to similarities.cols).foreach(col => {
+      similarities.update(indice, col, 0d)
+    })
   }
 
   /**
@@ -68,71 +84,25 @@ object CommonOperations {
    * @param coeff Coefficients applied to properties in matrix (rows in storage), default coefficient is 1
    * @return
    */
-  def similar(storage: Map[Long, RowMatrix])(start: Set[Long], coeff: Map[Int, Double] = Map.empty) = {
-    require(storage.nonEmpty)
-
+  def similar(storage: RDD[(DescriptorId, Matrix[Double])])(start: Set[DescriptorId], coeff: Map[Int, Double] = Map.empty) = {
     /**
      * Rows - props, cols - objects
      */
-    val similar = addMatrices(start.map(storage).toSeq: _*)
+    val similar = storage.filter(kv => start(kv._1)).values.coalesce(1).reduce(_ + _)
 
-    val multiplyMatrix = {
-      val multiplyArray = Array.fill(similar.numCols())(1d)
-      coeff.foreach(r => multiplyArray(r._1) = r._2)
+    val multiplyVector = {
+      val vect = DenseVector.ones[Double](similar.cols)
+      coeff.foreach(r => vect.update(r._1, r._2))
 
-      Matrices.dense(similar.numCols(), 1, multiplyArray)
+      vect
     }
 
-    similar.multiply(multiplyMatrix).rows.zipWithIndex().sortBy(_._1(0), ascending = false)
-  }
+    val vect = similar * multiplyVector
 
-  def addMatrices(matrices: IndexedRowMatrix*): IndexedRowMatrix = {
-    require(matrices.nonEmpty, "Pass at least one matrix")
-
-    if (matrices.length > 1) {
-      val numRows = matrices.head.numRows()
-      val numCols = matrices.head.numCols()
-      require(matrices.forall(m => m.numRows() == numRows && m.numCols() == numCols), "Matrix must have same dimensions")
-
-      val newRows = matrices.map(_.rows.map(ir => ir.index -> ir.vector.toBreeze)).reduce((a, b) => {
-        a.zip(b).map { case ((ai, aRow), (bi, bRow)) =>
-          require(ai == bi)
-
-          ai -> (aRow + bRow)
-        }
-      }).map { case (index, vector) => IndexedRow(index, vector.toSpark) }
-
-      new IndexedRowMatrix(newRows, numRows, numCols)
-    } else {
-      matrices.head
-    }
-  }
-
-  def addMatrices(matrices: RowMatrix*): RowMatrix = {
-    require(matrices.nonEmpty, "Pass at least one matrix")
-
-    if (matrices.length > 1) {
-      val numRows = matrices.head.numRows()
-      val numCols = matrices.head.numCols()
-      require(matrices.forall(m => m.numRows() == numRows && m.numCols() == numCols), "Matrix must have same dimensions")
-
-      val newRows = matrices.map(_.rows.map(_.toBreeze)).reduce((aRows, bRows) => {
-        aRows.zip(bRows).map(vectorsPair => vectorsPair._1 + vectorsPair._2)
-      }).map(_.toSpark)
-
-      new RowMatrix(newRows, numRows, numCols)
-    } else {
-      matrices.head
-    }
-  }
-
-  /**
-   * Union two maps a and b, executing mergeFunc on conflicting values
-   */
-  def unionWithKey[K, V](a: Map[K, V], b: Map[K, V], mergeFunc: (K, V, V) => V): Map[K, V] = {
-    (a -- b.keySet) ++ b.map { case (k, v) =>
-      k -> a.get(k).map(mergeFunc(k, v, _)).getOrElse(v)
-    }
+    vect.iterator
+      .map { case (index, value) => new IdentifiableDouble(index.toLong, value) }
+      .toSeq
+      .sorted(Ordering[Identifiable[Double]].reverse)
   }
 
 }

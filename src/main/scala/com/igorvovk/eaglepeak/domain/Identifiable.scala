@@ -12,7 +12,7 @@ object Identifiable {
 
 trait Identifiable[+T] extends Serializable {
 
-  val id: Long
+  val id: Int
 
   val value: T
 
@@ -27,6 +27,6 @@ trait Identifiable[+T] extends Serializable {
 
 }
 
-class IdentifiableSeq[T, +A <: GenIterable[T]](val id: Long, val value: A) extends Identifiable[A]
+class IdentifiableSeq[T, +A <: GenIterable[T]](val id: Int, val value: A) extends Identifiable[A]
 
-class IdentifiableDouble(val id: Long, val value: Double) extends Identifiable[Double]
+class IdentifiableDouble(val id: Int, val value: Double) extends Identifiable[Double]
