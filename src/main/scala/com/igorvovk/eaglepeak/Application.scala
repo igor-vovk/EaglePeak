@@ -44,8 +44,8 @@ object Application extends App {
     val athleteDescriptors = buildDescriptors[String](fixture, "Athlete")
 
     val matrices = Map(
-      "Country" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Country")._1.values).matrix,
-      "Sport" -> discretePropsComparator.compare(groupBy(fixture, "Athlete", "Sport")._1.values).matrix,
+      "Country" -> discretePropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Country")._1.values).matrix,
+      "Sport" -> discretePropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Sport")._1.values).matrix,
       "Year" -> continuousPropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Year")._1.values.map(s => java.lang.Double.valueOf(s.head))).matrix
     )
 
