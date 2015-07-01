@@ -42,7 +42,7 @@ class RawFirst(storage: RDD[(DescriptorId, Matrix[Double])]) {
     val vect = similar * multiplyVector
 
     vect.iterator
-      .map { case (index, value) => new IdentifiableDouble(index.toLong, value) }
+      .map { case (index, value) => new IdentifiableDouble(index, value) }
       .toSeq
       .sorted(Ordering[Identifiable[Double]].reverse)
   }
