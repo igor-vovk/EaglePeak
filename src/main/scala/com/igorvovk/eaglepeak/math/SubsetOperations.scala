@@ -10,26 +10,26 @@ object SubsetOperations {
   val storageOrdering = Ordering.by[Set[_], Int](_.size).reverse
 
   @tailrec
-  private def largestSubset[T](in: List[Set[T]], of: Set[T], setSize: Int): (Set[T], List[Set[T]]) = {
+  private def largestSubset[T](in: List[Set[T]], of: Set[T], ofSize: Int): (Set[T], List[Set[T]]) = {
     in match {
       case Nil => (null, List.empty)
       case s :: xs =>
-        if (s.subsetOf(of)) {
+        if (s.size <= ofSize && s.subsetOf(of)) {
           (s, xs)
         } else {
-          largestSubset(xs, of, setSize)
+          largestSubset(xs, of, ofSize)
         }
     }
   }
 
   @tailrec
-  private def largestSubsets[T](storage: List[Set[T]], set: Set[T], mem: List[Set[T]]): List[Set[T]] = {
-    storage match {
+  private def largestSubsets[T](in: List[Set[T]], of: Set[T], mem: List[Set[T]]): List[Set[T]] = {
+    in match {
       case Nil => mem
       case _ =>
-        largestSubset(storage, set, set.size) match {
-          case (null, Nil) => mem
-          case (sub, leftStorage) => largestSubsets(leftStorage, set -- sub, sub :: mem)
+        largestSubset(in, of, of.size) match {
+          case (null, _) => mem
+          case (sub, leftStorage) => largestSubsets(leftStorage, of -- sub, sub :: mem)
         }
     }
   }
