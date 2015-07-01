@@ -37,6 +37,7 @@ object CommonOperations {
 
     val simSize = algoMatrices.size
     val objCount = algoMatrices.head.numRows()
+    val sc = algoMatrices.head.entries.sparkContext
 
     algoMatrices.zipWithIndex.foreach { case (m, i) =>
       val cols = m.numCols()
@@ -50,14 +51,28 @@ object CommonOperations {
     }
 
     val entriesByObjectIds = algoMatrices.zipWithIndex.map { case (algoMatrix, algoIndex) =>
-      algoMatrix.entries.map { case MatrixEntry(row, col, v) =>
-        row.toInt -> MatrixEntry(col, algoIndex, v)
-      }
-    }.reduce(_ ++ _).groupByKey()
+      algoMatrix.entries.map(e => e.i.toInt -> e.copy(i = e.j, j = algoIndex))
+    }
 
-    val matricesByObjectIds = entriesByObjectIds.mapValues(mkMatrixFromEntries(_, objCount, simSize))
+    val matricesByObjectIds = sc.union(entriesByObjectIds)
+      .aggregateByKey(CSCMatrix.zeros[Double](objCount, simSize))(
+        (m, e) => {
+          m.update(e.i.toInt, e.j.toInt, e.value)
+          m
+        },
+        _ + _
+      )
+      .mapValues(optimizeMatrix)
 
     matricesByObjectIds
+  }
+
+  private def optimizeMatrix(m: CSCMatrix[Double]): Matrix[Double] = {
+    if (m.activeSize.toDouble / (m.rows * m.cols) > 0.75d) {
+      m.toDense
+    } else {
+      CSCMatrix.Builder.fromMatrix(m).result
+    }
   }
 
   def mkMatrixFromEntries(entries: Iterable[MatrixEntry], rows: Int, cols: Int): Matrix[Double] = {
