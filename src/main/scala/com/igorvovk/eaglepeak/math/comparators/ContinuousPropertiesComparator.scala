@@ -17,10 +17,14 @@ class ContinuousPropertiesComparator extends Comparator[Double] {
 
     val size = indexed.count()
 
-    val entries = indexed.cartesian(indexed).map { case ((a, i), (b, j)) =>
-      val weight = math.abs(a - b) / diff
+    val entries = indexed.cartesian(indexed).flatMap { case ((a, i), (b, j)) =>
+      if (i <= j) {
+        val weight = math.abs(a - b) / diff
 
-      MatrixEntry(i, j, weight)
+        Iterator(MatrixEntry(i, j, weight), MatrixEntry(j, i, weight))
+      } else {
+        Iterator.empty
+      }
     }
 
     val matrix = new CoordinateMatrix(entries, size, size)

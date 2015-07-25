@@ -1,5 +1,7 @@
 package com.igorvovk.eaglepeak.math
 
+import breeze.linalg.BitVector
+
 object Similarity {
 
   /**
@@ -24,21 +26,17 @@ object Similarity {
 
   /**
    * [[https://en.wikipedia.org/wiki/Jaccard_index]]
-   * Also known as Tanimoto coefficient (dealing with bit vectors represented as sets)
+   * Also known as Tanimoto coefficient (dealing with bit vectors)
    * @return
    */
-  def jaccard[T](a: SparseVector[T], b: SparseVector[T]): Double = {
-    jaccard(a.keySet, b.keySet)
-  }
+  def jaccard[T](a: BitVector, b: BitVector): Double = {
+    val num = (a & b).activeSize
+    if (num > 0) {
+      val den = (a + b).activeSize.toDouble
 
-  def jaccard[T](a: Set[T], b: Set[T]): Double = {
-    val num = a.count(b).toDouble
-    if (num > 0d) {
-      val den = (a ++ b).size.toDouble
-
-      num / den
+      num.toDouble / den
     } else {
-      num
+      0d
     }
   }
 

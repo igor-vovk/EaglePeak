@@ -5,7 +5,6 @@ import java.io.File
 import breeze.linalg.Matrix
 import com.google.inject.Guice
 import com.igorvovk.eaglepeak.domain.Descriptor
-import com.igorvovk.eaglepeak.domain.Descriptor.DescriptorId
 import com.igorvovk.eaglepeak.guice.{ConfigModule, SparkModule}
 import com.igorvovk.eaglepeak.math.comparators.{ContinuousPropertiesComparator, DiscretePropertiesComparator}
 import com.igorvovk.eaglepeak.math.recommendations.RawFirst
@@ -38,14 +37,14 @@ object Application extends App {
   def buildSimilarities(path: String) = {
     import com.igorvovk.eaglepeak.math.CommonOperations._
 
-    val discretePropsComparator = new DiscretePropertiesComparator[DescriptorId]
+    val discretePropsComparator = new DiscretePropertiesComparator
     val continuousPropsComparator = new ContinuousPropertiesComparator
 
     val athleteDescriptors = buildDescriptors[String](fixture, "Athlete")
 
     val matrices = Map(
-      "Country" -> discretePropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Country")._1.values).matrix,
-      "Sport" -> discretePropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Sport")._1.values).matrix,
+      "Country" -> discretePropsComparator.compare(extractDiscreteProps[String, String](fixture, "Athlete", "Country")._1.values).matrix,
+      "Sport" -> discretePropsComparator.compare(extractDiscreteProps[String, String](fixture, "Athlete", "Sport")._1.values).matrix,
       "Year" -> continuousPropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Year")._1.values.map(s => java.lang.Double.valueOf(s.head))).matrix
     )
 

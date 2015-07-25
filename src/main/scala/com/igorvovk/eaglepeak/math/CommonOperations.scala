@@ -1,6 +1,6 @@
 package com.igorvovk.eaglepeak.math
 
-import breeze.linalg.{CSCMatrix, Matrix}
+import breeze.linalg.{BitVector, CSCMatrix, Matrix}
 import com.igorvovk.eaglepeak.domain.Descriptor
 import com.igorvovk.eaglepeak.domain.Descriptor._
 import org.apache.spark.mllib.linalg.distributed._
@@ -26,6 +26,18 @@ object CommonOperations {
     val grouped = mkPair[K, V](df, keyCol, valueCol).mapValues(descriptionToId).groupByKey().mapValues(_.toSet)
 
     (grouped, valueDescriptors)
+  }
+
+  def extractDiscreteProps[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, BitVector)], Array[Descriptor[V]]) = {
+    val propertyDescriptors = buildDescriptors[V](df, valueCol).collect()
+    val propsCount = propertyDescriptors.length
+    val descriptionToId = propertyDescriptors.map(_.tupleInv).toMap
+
+    val grouped = mkPair[K, V](df, keyCol, valueCol).groupByKey().mapValues { case props =>
+      BitVector(propsCount)(props.map(descriptionToId).toSeq: _*)
+    }
+
+    (grouped, propertyDescriptors)
   }
 
   def mkPair[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): RDD[(K, V)] = {
