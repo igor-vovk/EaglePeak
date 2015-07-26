@@ -10,14 +10,14 @@ import scala.reflect.ClassTag
 
 object CommonOperations {
 
-  def index[T: ClassTag](df: DataFrame, column: String): Index[T] = {
-    index(df.map(_.getAs[T](column)))
+  def mkIndex[T: ClassTag](df: DataFrame, column: String): Index[T] = {
+    mkIndex(df.map(_.getAs[T](column)))
   }
 
-  def index[T](rdd: RDD[T]): Index[T] = Index(rdd.distinct().toLocalIterator)
+  def mkIndex[T](rdd: RDD[T]): Index[T] = Index(rdd.distinct().toLocalIterator)
 
   def groupBy[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, Set[Int])], Index[V]) = {
-    val valueIndex = index[V](df, valueCol)
+    val valueIndex = mkIndex[V](df, valueCol)
 
     val grouped = mkPair[K, V](df, keyCol, valueCol).mapValues(valueIndex).groupByKey().mapValues(_.toSet)
 
@@ -25,7 +25,7 @@ object CommonOperations {
   }
 
   def extractDiscreteProps[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, BitVector)], Index[V]) = {
-    val propertyIndex = index[V](df, valueCol)
+    val propertyIndex = mkIndex[V](df, valueCol)
     val propsCount = propertyIndex.size
 
     val grouped = mkPair[K, V](df, keyCol, valueCol).groupByKey().mapValues { case props =>

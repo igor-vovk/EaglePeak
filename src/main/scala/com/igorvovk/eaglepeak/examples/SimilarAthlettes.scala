@@ -43,7 +43,7 @@ object SimilarAthlettes extends App with Logging {
     val discretePropsComparator = new DiscretePropertiesComparator
     val continuousPropsComparator = new ContinuousPropertiesComparator
 
-    val athleteIndex = index[String](fixture, "Athlete")
+    val athleteIndex = mkIndex[String](fixture, "Athlete")
 
     val matrices = Map(
       "Country" -> discretePropsComparator.compare(extractDiscreteProps[String, String](fixture, "Athlete", "Country")._1.values).matrix,
