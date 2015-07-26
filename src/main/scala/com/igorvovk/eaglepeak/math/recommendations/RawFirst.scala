@@ -1,10 +1,12 @@
 package com.igorvovk.eaglepeak.math.recommendations
 
-import breeze.linalg.{DenseVector, Matrix}
-import com.igorvovk.eaglepeak.domain.Descriptor._
+import java.util
+
+import breeze.collection.mutable.Beam
+import breeze.linalg
+import breeze.linalg.{DenseMatrix, DenseVector, Matrix}
 import com.igorvovk.eaglepeak.domain.{Identifiable, IdentifiableDouble}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import com.twitter.chill.ResourcePool
 
 /**
  * First implementation of merging and sorting algorithm. Did not use any caches, but support scoring.
@@ -14,11 +16,23 @@ import org.apache.spark.storage.StorageLevel
  * @param storage Map, in which keys are identifiers of objects to start, and values are matrices with similarities.
  *                Rows are described as different objects, and columns as different properties
  */
-class RawFirst(storage: RDD[(DescriptorId, Matrix[Double])]) {
+class RawFirst(storage: Int => Option[Matrix[Double]], rows: Int, cols: Int) {
 
-  storage.persist(StorageLevel.MEMORY_AND_DISK)
+  val tempArrPool = new ResourcePool[Array[Double]](Runtime.getRuntime.availableProcessors) {
+    override def newInstance() = {
+      val a = new Array[Double](rows * cols)
 
-  val cols = storage.first()._2.cols
+      util.Arrays.fill(a, 0, a.length, 0.0d)
+
+      a
+    }
+
+    override def release(item: Array[Double]): Unit = {
+      util.Arrays.fill(item, 0, item.length, 0.0d)
+
+      super.release(item)
+    }
+  }
 
   /**
    *
@@ -26,25 +40,35 @@ class RawFirst(storage: RDD[(DescriptorId, Matrix[Double])]) {
    * @param coeff Coefficients applied to properties in matrix (rows in storage), default coefficient is 1
    * @return
    */
-  def similar(start: Set[DescriptorId], coeff: Map[Int, Double] = Map.empty) = {
+  def similar(start: linalg.Vector[Double], coeff: Map[Int, Double] = Map.empty, limit: Int): Iterable[Identifiable[Double]] = {
+    var temp: Matrix[Double] = DenseMatrix.create(rows, cols, tempArrPool.borrow())
+
+    for (itemId <- start.activeKeysIterator) {
+      val itemO = storage(itemId)
+      if (itemO.isDefined) {
+        val item = itemO.get
+
+        val itemWeight = start(itemId)
+        temp += (if (itemWeight == 1.0d) item else item * itemWeight)
+      }
+    }
+
     /**
      * Rows - props, cols - objects
      */
-    val similar = storage.filter(kv => start(kv._1)).values.coalesce(1).reduce(_ + _)
+    val multiplyVector = DenseVector.tabulate[Double](cols)(coeff.getOrElse(_, 1.0d))
 
-    val multiplyVector = {
-      val vect = DenseVector.ones[Double](cols)
-      coeff.foreach(r => vect.update(r._1, r._2))
+    val vec = temp * multiplyVector
+    tempArrPool.release(temp.asInstanceOf[DenseMatrix[Double]].data)
 
-      vect
-    }
+    start.activeKeysIterator.foreach(i => vec.update(i, 0d)) // Exclude starting points
 
-    val vect = similar * multiplyVector
+    val beam = Beam[Identifiable[Double]](limit)
 
-    vect.iterator
+    beam ++= vec.activeIterator
       .map { case (index, value) => new IdentifiableDouble(index, value) }
-      .toSeq
-      .sorted(Ordering[Identifiable[Double]].reverse)
+
+    beam
   }
 
 }

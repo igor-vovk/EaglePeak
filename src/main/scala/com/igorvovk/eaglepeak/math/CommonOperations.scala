@@ -1,8 +1,7 @@
 package com.igorvovk.eaglepeak.math
 
 import breeze.linalg.{BitVector, CSCMatrix, Matrix}
-import com.igorvovk.eaglepeak.domain.Descriptor
-import com.igorvovk.eaglepeak.domain.Descriptor._
+import breeze.util.Index
 import org.apache.spark.mllib.linalg.distributed._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
@@ -11,33 +10,29 @@ import scala.reflect.ClassTag
 
 object CommonOperations {
 
-  def buildDescriptors[T: ClassTag](df: DataFrame, column: String): RDD[Descriptor[T]] = {
-    buildDescriptors(df.map(_.getAs[T](column)))
+  def index[T: ClassTag](df: DataFrame, column: String): Index[T] = {
+    index(df.map(_.getAs[T](column)))
   }
 
-  def buildDescriptors[T](rdd: RDD[T]): RDD[Descriptor[T]] = {
-    rdd.distinct().zipWithIndex().map { case (description, id) => new Descriptor(id, description) }
+  def index[T](rdd: RDD[T]): Index[T] = Index(rdd.distinct().toLocalIterator)
+
+  def groupBy[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, Set[Int])], Index[V]) = {
+    val valueIndex = index[V](df, valueCol)
+
+    val grouped = mkPair[K, V](df, keyCol, valueCol).mapValues(valueIndex).groupByKey().mapValues(_.toSet)
+
+    (grouped, valueIndex)
   }
 
-  def groupBy[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, Set[DescriptorId])], Array[Descriptor[V]]) = {
-    val valueDescriptors = buildDescriptors[V](df, valueCol).collect()
-    val descriptionToId = valueDescriptors.map(_.tupleInv).toMap
-
-    val grouped = mkPair[K, V](df, keyCol, valueCol).mapValues(descriptionToId).groupByKey().mapValues(_.toSet)
-
-    (grouped, valueDescriptors)
-  }
-
-  def extractDiscreteProps[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, BitVector)], Array[Descriptor[V]]) = {
-    val propertyDescriptors = buildDescriptors[V](df, valueCol).collect()
-    val propsCount = propertyDescriptors.length
-    val descriptionToId = propertyDescriptors.map(_.tupleInv).toMap
+  def extractDiscreteProps[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): (RDD[(K, BitVector)], Index[V]) = {
+    val propertyIndex = index[V](df, valueCol)
+    val propsCount = propertyIndex.size
 
     val grouped = mkPair[K, V](df, keyCol, valueCol).groupByKey().mapValues { case props =>
-      BitVector(propsCount)(props.map(descriptionToId).toSeq: _*)
+      BitVector(propsCount)(props.map(propertyIndex).toSeq: _*)
     }
 
-    (grouped, propertyDescriptors)
+    (grouped, propertyIndex)
   }
 
   def mkPair[K: ClassTag, V: ClassTag](df: DataFrame, keyCol: String, valueCol: String): RDD[(K, V)] = {
@@ -67,7 +62,7 @@ object CommonOperations {
     }
 
     val matricesByObjectIds = sc.union(entriesByObjectIds)
-      .aggregateByKey(CSCMatrix.zeros[Double](objCount, simSize))(
+      .aggregateByKey(CSCMatrix.zeros[Double](objCount.toInt, simSize))(
         (m, e) => {
           m.update(e.i.toInt, e.j.toInt, e.value)
           m

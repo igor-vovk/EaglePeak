@@ -11,7 +11,7 @@ class CommonOperationsSpec extends Specification with SparkBeforeAfter {
 
   "buildDescriptors" >> {
     val df = sqlc.createDataFrame(tuples)
-    val descriptors = buildDescriptors[String](df, "_1").collect()
+    val descriptors = index[String](df, "_1").collect()
 
     descriptors must have size 3
   }

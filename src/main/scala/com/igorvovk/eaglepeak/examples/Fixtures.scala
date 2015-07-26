@@ -1,4 +1,4 @@
-package com.igorvovk.eaglepeak
+package com.igorvovk.eaglepeak.examples
 
 import org.apache.spark.sql.SQLContext
 
