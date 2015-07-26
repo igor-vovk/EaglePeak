@@ -13,15 +13,15 @@ resolvers ++= Seq(
 
 libraryDependencies ++= {
   val sparkVer = "1.4.0"
-  val luceneVer = "5.2.1"
   Seq(
-    "org.apache.spark" %% "spark-core" % sparkVer,
+    "org.apache.spark" %% "spark-core" % sparkVer excludeAll(ExclusionRule(organization = "org.slf4j")),
     "org.apache.spark" %% "spark-mllib" % sparkVer,
     "com.databricks" %% "spark-csv" % "1.0.3",
     "net.ceedubs" %% "ficus" % "1.1.2",
     "net.codingwell" %% "scala-guice" % "4.0.0",
     "org.monifu" %% "monifu" % "1.0-M2",
     "com.twitter" %% "chill" % "0.5.0",
+    "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.specs2" %% "specs2-core" % "3.6.1" % "test"
   )
 }

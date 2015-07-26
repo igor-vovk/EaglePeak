@@ -38,7 +38,7 @@ object SimilarAthlettes extends App with Logging {
     val fixture = Fixtures.athlettes(sqlc)
     fixture.persist(StorageLevel.MEMORY_AND_DISK)
 
-    debug("Schema: " + fixture.schema.treeString)
+    trace("Schema: " + fixture.schema.treeString)
 
     val discretePropsComparator = new DiscretePropertiesComparator
     val continuousPropsComparator = new ContinuousPropertiesComparator
@@ -108,11 +108,9 @@ object SimilarAthlettes extends App with Logging {
     recommendationsAlgo.similar(from, limit = 50).foreach(row => {
 //      println(idx.get(row.id) + ": " + row.value)
     })
-
-//    debug("Done")
   }
 
-  println("Recommendations fetch time: " + Profiling.time(100)(loop) + " ms")
+  info("Recommendations fetch time: " + Profiling.time(100)(loop) + " ms")
 
   StdIn.readLine("Enter to exit...")
 
