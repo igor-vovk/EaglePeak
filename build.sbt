@@ -21,6 +21,7 @@ libraryDependencies ++= {
     "net.ceedubs" %% "ficus" % "1.1.2",
     "net.codingwell" %% "scala-guice" % "4.0.0",
     "org.monifu" %% "monifu" % "1.0-M2",
+    "com.twitter" %% "chill" % "0.5.0",
     "org.specs2" %% "specs2-core" % "3.6.1" % "test"
   )
 }

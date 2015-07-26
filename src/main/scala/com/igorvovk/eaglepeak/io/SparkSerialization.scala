@@ -1,4 +1,4 @@
-package com.igorvovk.eaglepeak.service
+package com.igorvovk.eaglepeak.io
 
 import java.io.ByteArrayOutputStream
 
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 /**
  * [[http://blog.madhukaraphatak.com/kryo-disk-serialization-in-spark/]]
  */
-object IO {
+object SparkSerialization {
 
   def saveRDD[T: ClassTag](rdd: RDD[T], path: String) = {
     val kryoSerializer = new KryoSerializer(rdd.context.getConf)
