@@ -5,6 +5,7 @@ import java.io.File
 import breeze.io.FileStreams
 import com.google.inject.{Inject, Singleton}
 import com.twitter.chill.KryoPool
+import org.apache.commons.io.IOUtils
 
 import scala.reflect.ClassTag
 
@@ -38,7 +39,7 @@ class Serialization @Inject()(pool: KryoPool) {
     val kryo = pool.borrow()
 
     try {
-      kryo.setInput(is)
+      kryo.setInput(IOUtils.toByteArray(is))
       val data = kryo.readClassAndObject()
 
       data.asInstanceOf[T]
