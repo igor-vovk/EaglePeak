@@ -18,7 +18,7 @@ import scala.io.StdIn
 import scala.util.Random
 import scala.util.control.NonFatal
 
-object Athlettes extends App with Logging {
+object SimilarAthlettes extends App with Logging {
 
   info("Hello from Eagle Peek!")
 
@@ -82,7 +82,7 @@ object Athlettes extends App with Logging {
     (index, mem)
   }
 
-  val path = "/tmp/bootsrap"
+  val path = "/tmp/athlettes"
   if (!new File(path).exists()) {
     debug("Start building similarities")
     buildSimilarities(path)
