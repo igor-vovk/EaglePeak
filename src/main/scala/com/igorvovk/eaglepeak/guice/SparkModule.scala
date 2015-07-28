@@ -10,7 +10,9 @@ object SparkModule {
 
   def commonConfig() = {
     val commonSettings = Map(
-      "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
+      "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
+      "spark.executor.memory" -> "2g",
+      "spark.driver.memory" -> "2g"
     )
 
     new SparkConf()

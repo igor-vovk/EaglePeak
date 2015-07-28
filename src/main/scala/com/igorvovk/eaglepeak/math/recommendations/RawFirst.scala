@@ -49,7 +49,7 @@ class RawFirst(storage: Int => Option[Matrix[Double]], rows: Int, cols: Int) {
         val item = itemO.get
 
         val itemWeight = start(itemId)
-        temp += (if (itemWeight == 1.0d) item else item * itemWeight)
+        temp += (if (itemWeight == 1.0d) item else item :* itemWeight)
       }
     }
 
@@ -61,7 +61,7 @@ class RawFirst(storage: Int => Option[Matrix[Double]], rows: Int, cols: Int) {
     val vec = temp * multiplyVector
     tempArrPool.release(temp.asInstanceOf[DenseMatrix[Double]].data)
 
-    start.activeKeysIterator.foreach(i => vec.update(i, 0d)) // Exclude starting points
+    start.activeKeysIterator.foreach(vec.update(_, 0d)) // Exclude starting points
 
     val beam = Beam[Identifiable[Double]](limit)
 

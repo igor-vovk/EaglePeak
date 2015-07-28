@@ -46,8 +46,8 @@ object SimilarAthlettes extends App with Logging {
     val athleteIndex = mkIndex[String](fixture, "Athlete")
 
     val matrices = Map(
-      "Country" -> discretePropsComparator.compare(extractDiscreteProps[String, String](fixture, "Athlete", "Country")._1.values).matrix,
-      "Sport" -> discretePropsComparator.compare(extractDiscreteProps[String, String](fixture, "Athlete", "Sport")._1.values).matrix,
+      "Country" -> discretePropsComparator.compare(extractDiscretePropsGrouping[String, String](fixture, "Athlete", "Country")._1.values).matrix,
+      "Sport" -> discretePropsComparator.compare(extractDiscretePropsGrouping[String, String](fixture, "Athlete", "Sport")._1.values).matrix,
       "Year" -> continuousPropsComparator.compare(groupBy[String, String](fixture, "Athlete", "Year")._1.values.map(s => java.lang.Double.valueOf(s.head))).matrix
     )
 
