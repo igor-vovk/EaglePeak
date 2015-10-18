@@ -29,10 +29,7 @@ class ContinuousPropertiesComparator extends Comparator[Double] {
 
     val matrix = new CoordinateMatrix(entries, size, size)
 
-    objects.unpersist(false)
-    indexed.unpersist(false)
-
-    ComparatorResult(matrix)
+    ComparatorResult(matrix.toIndexedRowMatrix())
   }
 
 }

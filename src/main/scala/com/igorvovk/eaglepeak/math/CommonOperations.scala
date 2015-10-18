@@ -2,6 +2,8 @@ package com.igorvovk.eaglepeak.math
 
 import breeze.linalg.{BitVector, CSCMatrix, Matrix}
 import breeze.util.Index
+import org.apache.spark.mllib.linalg.DenseMatrix
+import org.apache.spark.mllib.linalg.SparkBreezeConverters._
 import org.apache.spark.mllib.linalg.distributed._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
@@ -81,28 +83,33 @@ object CommonOperations {
     df.map(row => row.getAs[K](keyCol) -> row.getAs[V](valueCol))
   }
 
-  def rotateAndTranspose(algoMatrices: Seq[CoordinateMatrix]): RDD[(Int, Matrix[Double])] = {
+  def rotateAndTranspose(algoMatrices: Seq[IndexedRowMatrix]): RDD[(Int, Matrix[Double])] = {
     require(algoMatrices.nonEmpty)
 
     val simSize = algoMatrices.size
-    val objCount = algoMatrices.head.numRows()
 
-    val entriesByObjectIds = algoMatrices.zipWithIndex.map { case (m, algoIndex) =>
-      val cols = m.numCols()
-      val rows = m.numRows()
-
-      require(
-        cols == objCount && rows == objCount,
-        s"All matrices should be square and have same dimensions " +
-          s"(matrix #$algoIndex (RDD ${m.entries.name}} have dimensions R$rows x C$cols, must be $objCount)"
-      )
-
-      m.entries.map(e => e.i.toInt -> (e.j.toInt, algoIndex, e.value))
+    val entriesByObjectIds = algoMatrices.zipWithIndex.map { case (m, algoId) =>
+      m.rows.map(r => r.index.toInt -> r.copy(index = algoId))
     }
 
     val matricesByObjectIds = union(entriesByObjectIds)
       .groupByKey()
-      .mapValues(matrixFromCOO(objCount.toInt, simSize, _))
+      .mapValues(rows => {
+        var mb: CSCMatrix.Builder[Double] = null
+
+        rows.foreach(row => {
+          val index = row.index.toInt
+          val v = row.vector.toBreeze
+
+          if (null == mb) {
+            mb = new CSCMatrix.Builder(v.size, simSize)
+          }
+
+          v.foreachPair(mb.add(_, index, _))
+        })
+
+        mb.result.asInstanceOf[Matrix[Double]]
+      })
 
     matricesByObjectIds
   }
@@ -111,10 +118,10 @@ object CommonOperations {
    * Generate a `SparseMatrix` from Coordinate List (COO) format. Input must be an array of
    * (i, j, value) tuples.
    */
-  def matrixFromCOO(r: Int, c: Int, values: TraversableOnce[(Int, Int, Double)]): Matrix[Double] = {
+  def matrixFromCOO(rows: Int, cols: Int, values: TraversableOnce[(Int, Int, Double)]): Matrix[Double] = {
     val sizeHint = if (values.hasDefiniteSize) values.size else 16
 
-    val mb = new CSCMatrix.Builder[Double](r, c, sizeHint)
+    val mb = new CSCMatrix.Builder[Double](rows, cols, sizeHint)
     values.foreach((mb.add _).tupled)
 
     mb.result
@@ -126,11 +133,15 @@ object CommonOperations {
     if (seq.size == 1) seq.head else seq.head.sparkContext.union(seq)
   }
 
-  def optimizeMatrix(m: CSCMatrix[Double]): Matrix[Double] = {
-    if (m.activeSize.toDouble / (m.rows * m.cols) > 0.75d) {
-      m.toDense
-    } else {
-      CSCMatrix.Builder.fromMatrix(m).result
+  def optimizeMatrix(m: Matrix[Double]): Matrix[Double] = {
+    m match {
+      case a: DenseMatrix => a // Nothing to optimize
+      case a: CSCMatrix[Double] =>
+        if (a.activeSize.toDouble / a.size.toDouble > 0.75d) {
+          a.toDense
+        } else {
+          CSCMatrix.Builder.fromMatrix(a).result
+        }
     }
   }
 

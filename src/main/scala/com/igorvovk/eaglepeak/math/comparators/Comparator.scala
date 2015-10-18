@@ -1,9 +1,9 @@
 package com.igorvovk.eaglepeak.math.comparators
 
-import org.apache.spark.mllib.linalg.distributed.CoordinateMatrix
+import org.apache.spark.mllib.linalg.distributed.IndexedRowMatrix
 import org.apache.spark.rdd.RDD
 
-case class ComparatorResult(matrix: CoordinateMatrix)
+case class ComparatorResult(matrix: IndexedRowMatrix)
 
 trait Comparator[T] {
 
